@@ -1,30 +1,30 @@
 use crate::sensor::Sensor;
 use crate::sensor::SensorEvent;
-use crate::sensor::SimpleSensor;
+use crate::sensor::TCPSensor;
 use crate::traffic_light::TrafficLight;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
 pub struct Orchestrator<T: TrafficLight> {
-    sensors: Vec<Arc<Mutex<SimpleSensor>>>,
-    traffic_light: Mutex<T>,
+    sensors: Vec<Arc<Mutex<TCPSensor>>>,
+    traffic_light: T,
 }
 
 impl<T: TrafficLight> Orchestrator<T> {
     pub fn new(tl: T) -> Self {
         Self {
             sensors: Vec::new(),
-            traffic_light: Mutex::new(tl),
+            traffic_light: tl,
         }
     }
 
-    pub fn add_sensor(&mut self, sensor: SimpleSensor) {
+    pub fn add_sensor(&mut self, sensor: TCPSensor) {
         self.sensors.push(Arc::new(Mutex::new(sensor)));
     }
 }
 
 impl<T: TrafficLight> Orchestrator<T> {
-    pub async fn run(&self) {
+    pub async fn run(&mut self) {
         let (s, mut r) = mpsc::channel::<SensorEvent>(32);
 
         for sensor in &self.sensors {
@@ -40,8 +40,7 @@ impl<T: TrafficLight> Orchestrator<T> {
         }
 
         while let Some(event) = r.recv().await {
-            let mut light_guard = self.traffic_light.lock().await;
-            light_guard.update(event).await;
+            self.traffic_light.update(event).await;
         }
     }
 }
