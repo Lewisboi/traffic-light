@@ -1,5 +1,3 @@
-use std::{fmt::format, path::Display};
-
 use crate::sensor::{self, SensorEvent};
 
 #[derive(PartialEq, Debug)]
