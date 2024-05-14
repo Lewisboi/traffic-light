@@ -1,4 +1,4 @@
-use crate::sensor::{Sensor, SensorEvent, TCPSensor};
+use crate::sensor::{Sensor, SensorEvent};
 use crate::traffic_light::TrafficLight;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
@@ -16,7 +16,7 @@ impl<T: TrafficLight> Orchestrator<T> {
         }
     }
 
-    pub fn add_sensor(&mut self, sensor: TCPSensor) {
+    pub fn add_sensor<S: Sensor + Send + 'static>(&mut self, sensor: S) {
         self.sensors.push(Arc::new(Mutex::new(sensor)));
     }
 }
