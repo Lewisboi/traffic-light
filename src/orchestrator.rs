@@ -1,39 +1,31 @@
-use crate::sensor::{Sensor, SensorEvent};
+use crate::controller::{Controller, Occupancy};
 use crate::traffic_light::TrafficLight;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
-pub struct Orchestrator<T: TrafficLight> {
-    sensors: Vec<Arc<Mutex<dyn Sensor + Send>>>,
+pub struct Orchestrator<T: TrafficLight, C: Controller> {
+    controller: Arc<Mutex<C>>,
     traffic_light: T,
 }
 
-impl<T: TrafficLight> Orchestrator<T> {
-    pub fn new(tl: T) -> Self {
+impl<T: TrafficLight, C: Controller> Orchestrator<T, C> {
+    pub fn new(ctrl: C, tl: T) -> Self {
         Self {
-            sensors: Vec::new(),
+            controller: Arc::new(Mutex::new(ctrl)),
             traffic_light: tl,
         }
     }
-
-    pub fn add_sensor<S: Sensor + Send + 'static>(&mut self, sensor: S) {
-        self.sensors.push(Arc::new(Mutex::new(sensor)));
-    }
 }
 
-impl<T: TrafficLight> Orchestrator<T> {
+impl<T: TrafficLight, C: Controller + Send + 'static> Orchestrator<T, C> {
     pub fn run(&mut self) {
-        let (s, r) = mpsc::channel::<SensorEvent>();
-
-        for sensor in &self.sensors {
-            let sensor = sensor.clone();
-            let sender = s.clone();
-            thread::spawn(move || loop {
-                let mut mutex_guard = sensor.lock().unwrap();
-                let event = mutex_guard.sense();
-                sender.send(event).unwrap();
-            });
-        }
+        let (s, r) = mpsc::channel::<Occupancy>();
+        let s_clone = s.clone();
+        let c_clone = self.controller.clone();
+        thread::spawn(move || loop {
+            let occ = c_clone.lock().unwrap().get_occupancy();
+            s_clone.send(occ).unwrap();
+        });
 
         for event in r.iter() {
             self.traffic_light.update(event);

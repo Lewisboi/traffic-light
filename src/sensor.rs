@@ -4,20 +4,16 @@ use std::{io::Write, net::TcpListener};
 use rand::{thread_rng, Rng};
 use std::time::Duration;
 
-pub enum SensorEvent {
-    Open,
-    Close,
+pub enum SensorState {
+    Opened,
+    Closed,
 }
 
 #[allow(async_fn_in_trait)]
 pub trait Sensor {
-    fn sense(&mut self) -> SensorEvent;
+    fn state(&self) -> SensorState;
 }
 
-enum SensorState {
-    Opened,
-    Closed,
-}
 pub struct SimpleSensor(Mutex<SensorState>);
 
 impl SimpleSensor {
@@ -27,18 +23,18 @@ impl SimpleSensor {
 }
 
 impl Sensor for SimpleSensor {
-    fn sense(&mut self) -> SensorEvent {
+    fn state(&self) -> SensorState {
         let sleep_time = thread_rng().gen_range(0..10);
         std::thread::sleep(Duration::from_secs(sleep_time));
         let mut state_guard = self.0.lock().unwrap();
         match *state_guard {
             SensorState::Closed => {
                 *state_guard = SensorState::Opened;
-                SensorEvent::Open
+                SensorState::Opened
             }
             SensorState::Opened => {
                 *state_guard = SensorState::Closed;
-                SensorEvent::Close
+                SensorState::Closed
             }
         }
     }
@@ -56,7 +52,7 @@ impl TCPSensor {
 }
 
 impl Sensor for TCPSensor {
-    fn sense(&mut self) -> SensorEvent {
+    fn state(&self) -> SensorState {
         let (mut conn, _) = self.1.accept().expect("Acception connection to work");
         let mut state_guard = self.0.lock().unwrap();
 
@@ -84,11 +80,11 @@ impl Sensor for TCPSensor {
         match *state_guard {
             SensorState::Closed => {
                 *state_guard = SensorState::Opened;
-                SensorEvent::Open
+                SensorState::Opened
             }
             SensorState::Opened => {
                 *state_guard = SensorState::Closed;
-                SensorEvent::Close
+                SensorState::Closed
             }
         }
     }
