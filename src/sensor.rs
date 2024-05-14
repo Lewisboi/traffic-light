@@ -1,8 +1,8 @@
-use tokio::sync::Mutex;
-use tokio::{io::AsyncWriteExt, net::TcpListener};
+use std::sync::Mutex;
+use std::{io::Write, net::TcpListener};
 
 use rand::{thread_rng, Rng};
-use tokio::time::{self, Duration};
+use std::time::Duration;
 
 pub enum SensorEvent {
     Open,
@@ -11,7 +11,7 @@ pub enum SensorEvent {
 
 #[allow(async_fn_in_trait)]
 pub trait Sensor {
-    async fn sense(&mut self) -> SensorEvent;
+    fn sense(&mut self) -> SensorEvent;
 }
 
 enum SensorState {
@@ -27,10 +27,10 @@ impl SimpleSensor {
 }
 
 impl Sensor for SimpleSensor {
-    async fn sense(&mut self) -> SensorEvent {
+    fn sense(&mut self) -> SensorEvent {
         let sleep_time = thread_rng().gen_range(0..10);
-        time::sleep(Duration::from_secs(sleep_time)).await;
-        let mut state_guard = self.0.lock().await;
+        std::thread::sleep(Duration::from_secs(sleep_time));
+        let mut state_guard = self.0.lock().unwrap();
         match *state_guard {
             SensorState::Closed => {
                 *state_guard = SensorState::Opened;
@@ -47,20 +47,18 @@ impl Sensor for SimpleSensor {
 pub struct TCPSensor(Mutex<SensorState>, TcpListener);
 
 impl TCPSensor {
-    pub async fn new(connection_string: &str) -> Self {
+    pub fn new(connection_string: &str) -> Self {
         TCPSensor(
             Mutex::new(SensorState::Opened),
-            TcpListener::bind(connection_string)
-                .await
-                .expect("connection to be established correctly"),
+            TcpListener::bind(connection_string).expect("connection to be established correctly"),
         )
     }
 }
 
 impl Sensor for TCPSensor {
-    async fn sense(&mut self) -> SensorEvent {
-        let (mut conn, _) = self.1.accept().await.expect("Acception connection to work");
-        let mut state_guard = self.0.lock().await;
+    fn sense(&mut self) -> SensorEvent {
+        let (mut conn, _) = self.1.accept().expect("Acception connection to work");
+        let mut state_guard = self.0.lock().unwrap();
 
         // Construct the HTTP response with the appropriate Content-Length
         let body = match *state_guard {
@@ -75,14 +73,12 @@ impl Sensor for TCPSensor {
 
         // Send the response
         conn.write_all(response.as_bytes())
-            .await
             .expect("writing to the connection to work");
 
         // Flush the connection to ensure all data is sent
-        conn.flush().await.expect("flushing the connection to work");
+        conn.flush().expect("flushing the connection to work");
 
         conn.write_all(response.as_bytes())
-            .await
             .expect("writing to the connection to work");
 
         match *state_guard {

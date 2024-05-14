@@ -1,12 +1,10 @@
-use crate::sensor::Sensor;
-use crate::sensor::SensorEvent;
-use crate::sensor::TCPSensor;
+use crate::sensor::{Sensor, SensorEvent, TCPSensor};
 use crate::traffic_light::TrafficLight;
-use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
 
 pub struct Orchestrator<T: TrafficLight> {
-    sensors: Vec<Arc<Mutex<TCPSensor>>>,
+    sensors: Vec<Arc<Mutex<dyn Sensor + Send>>>,
     traffic_light: T,
 }
 
@@ -24,23 +22,21 @@ impl<T: TrafficLight> Orchestrator<T> {
 }
 
 impl<T: TrafficLight> Orchestrator<T> {
-    pub async fn run(&mut self) {
-        let (s, mut r) = mpsc::channel::<SensorEvent>(32);
+    pub fn run(&mut self) {
+        let (s, r) = mpsc::channel::<SensorEvent>();
 
         for sensor in &self.sensors {
             let sensor = sensor.clone();
             let sender = s.clone();
-            tokio::spawn(async move {
-                loop {
-                    let mut mutex_guard = sensor.lock().await;
-                    let event = mutex_guard.sense().await;
-                    sender.send(event).await.unwrap();
-                }
+            thread::spawn(move || loop {
+                let mut mutex_guard = sensor.lock().unwrap();
+                let event = mutex_guard.sense();
+                sender.send(event).unwrap();
             });
         }
 
-        while let Some(event) = r.recv().await {
-            self.traffic_light.update(event).await;
+        for event in r.iter() {
+            self.traffic_light.update(event);
         }
     }
 }

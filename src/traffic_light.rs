@@ -8,7 +8,7 @@ pub enum TrafficLightState {
 
 #[allow(async_fn_in_trait)]
 pub trait TrafficLight {
-    async fn update(&mut self, status: sensor::SensorEvent);
+    fn update(&mut self, status: sensor::SensorEvent);
 }
 
 pub struct SimpleTrafficLight {
@@ -41,7 +41,7 @@ impl ToString for SimpleTrafficLight {
 }
 
 impl TrafficLight for SimpleTrafficLight {
-    async fn update(&mut self, status: sensor::SensorEvent) {
+    fn update(&mut self, status: sensor::SensorEvent) {
         match status {
             SensorEvent::Open => {
                 self.currently_closed -= 1;
@@ -65,11 +65,11 @@ mod tests {
     #[tokio::test]
     async fn simple_traffic_light_updates_correctly() {
         let mut tl = SimpleTrafficLight::new(3);
-        tl.update(SensorEvent::Close).await;
+        tl.update(SensorEvent::Close);
         assert_eq!(tl.state, TrafficLightState::Green);
-        tl.update(SensorEvent::Close).await;
+        tl.update(SensorEvent::Close);
         assert_eq!(tl.state, TrafficLightState::Green);
-        tl.update(SensorEvent::Close).await;
+        tl.update(SensorEvent::Close);
         assert_eq!(tl.state, TrafficLightState::Red);
     }
 }

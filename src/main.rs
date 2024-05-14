@@ -4,14 +4,13 @@ use crate::traffic_light::SimpleTrafficLight;
 
 const SENSOR_COUNT: u8 = 3;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let mut orchestrator = Orchestrator::new(SimpleTrafficLight::new(SENSOR_COUNT));
     for i in 0..SENSOR_COUNT {
         let connection_string = format!("127.0.0.1:808{i}");
-        orchestrator.add_sensor(TCPSensor::new(&connection_string).await);
+        orchestrator.add_sensor(TCPSensor::new(&connection_string));
     }
-    orchestrator.run().await
+    orchestrator.run();
 }
 
 pub mod sensor;
