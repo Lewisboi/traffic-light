@@ -1,7 +1,7 @@
 use crate::controller::multicontroller::MultiController;
 use crate::orchestrator::Orchestrator;
 use crate::sensor::{SimpleSensor, TCPSensor};
-use crate::traffic_light::SimpleTrafficLight;
+use crate::traffic_light::TerminalTrafficLight;
 
 const SENSOR_COUNT: u8 = 3;
 
@@ -13,7 +13,7 @@ fn main() {
     }
     controller.add_sensor(SimpleSensor::new());
 
-    let mut orchestrator = Orchestrator::new(controller, SimpleTrafficLight::new());
+    let mut orchestrator = Orchestrator::new(controller, TerminalTrafficLight::new());
     orchestrator.run();
 }
 
